@@ -1,0 +1,11 @@
+{
+  "project": "ImageVault",
+  "description": "A Tauri desktop app written in Rust + React for storing, tagging, and searching images locally. Supports OCR auto-tagging using Tesseract (via leptess). All images are stored locally, and metadata is saved in SQLite. React + Tailwind handle the UI, while Rust handles OCR and database logic.",
+  "rules": [
+    "Frontend in React + Tailwind, backend in Rust.",
+    "Use Tauri commands to connect frontend with backend.",
+    "Images are never uploaded online — privacy first.",
+    "Tags are both manual (user input) and automatic (OCR).",
+    "Keep UI clean and minimal: grid of images, search bar, tag editor modal."
+  ]
+}
