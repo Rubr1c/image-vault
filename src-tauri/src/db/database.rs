@@ -1,19 +1,20 @@
-use rusqlite::{Connection, Result, params};
-
 use crate::utils::file_utils;
-
+use rusqlite::{Connection, Result, params};
 use std::fs;
+use std::sync::Mutex;
 
-const MIGRATIONS: &[&str] = &["CREATE TABLE IF NOT EXISTS images (
+pub struct Db(pub Mutex<Connection>);
+
+pub const MIGRATIONS: &[&str] = &["CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT NOT NULL,
     path TEXT NOT NULL,
     tags TEXT,
-    ocr_test TEXT,
+    ocr_text TEXT,
     added_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )"];
 
-fn sync_from_files(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
+pub fn sync_from_files(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     let dir = file_utils::get_image_path();
 
     for entry in fs::read_dir(dir)? {
@@ -42,18 +43,4 @@ fn sync_from_files(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> 
     }
 
     Ok(())
-}
-
-pub fn init_db() -> Result<Connection, Box<dyn std::error::Error>> {
-    let mut db_path = file_utils::get_storage_path();
-    db_path.push("imagevault.db");
-    let conn = Connection::open(db_path)?;
-
-    for migration in MIGRATIONS {
-        conn.execute(migration, [])?;
-    }
-
-    sync_from_files(&conn)?;
-
-    Ok(conn)
 }
