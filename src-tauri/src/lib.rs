@@ -24,6 +24,8 @@ pub fn run() {
                 conn.execute(migration, []).expect("Migration failed");
             }
 
+            database::ensure_search_table(&conn).expect("Failed to ensure FTS table schema");
+
             database::sync_from_files(&conn)?;
 
             app.manage(Db(Mutex::new(conn)));
@@ -31,7 +33,11 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![image_commands::get_images])
+        .invoke_handler(tauri::generate_handler![
+            image_commands::get_images,
+            image_commands::add_tag,
+            image_commands::get_tags,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

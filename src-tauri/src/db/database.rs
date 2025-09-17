@@ -1,18 +1,52 @@
 use crate::utils::file_utils;
+use rusqlite::OptionalExtension;
 use rusqlite::{Connection, Result, params};
 use std::fs;
 use std::sync::Mutex;
 
 pub struct Db(pub Mutex<Connection>);
 
-pub const MIGRATIONS: &[&str] = &["CREATE TABLE IF NOT EXISTS images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename TEXT NOT NULL,
-    path TEXT NOT NULL,
-    tags TEXT,
-    ocr_text TEXT,
-    added_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)"];
+pub const MIGRATIONS: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT NOT NULL,
+        path TEXT NOT NULL,
+        added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )",
+    "CREATE VIRTUAL TABLE IF NOT EXISTS image_search USING fts5(
+        search_text
+    )",
+];
+
+pub fn ensure_search_table(conn: &Connection) -> rusqlite::Result<()> {
+    let sql_def: Option<String> = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='image_search'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    match sql_def {
+        Some(definition) => {
+            if definition.contains("content='images'") {
+                conn.execute("DROP TABLE image_search", [])?;
+                conn.execute(
+                    "CREATE VIRTUAL TABLE image_search USING fts5(search_text)",
+                    [],
+                )?;
+            }
+        }
+        None => {
+            conn.execute(
+                "CREATE VIRTUAL TABLE image_search USING fts5(search_text)",
+                [],
+            )?;
+        }
+    }
+
+    Ok(())
+}
 
 pub fn sync_from_files(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     let dir = file_utils::get_image_path();
