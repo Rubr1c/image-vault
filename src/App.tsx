@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import './App.css';
 import { invoke } from '@tauri-apps/api/core';
 import Image from './components/image';
@@ -10,6 +10,25 @@ function App() {
   const [images, setImages] = useState<ImageData[]>();
   const [showModal, setShowModal] = useState<boolean>(false);
   const [selectedImage, setSelectedImage] = useState<ImageData>();
+  const [searchTag, setSearchTag] = useState<string>('');
+
+  const handleSearch = useCallback((query: string) => {
+    if (query.trim() !== '') {
+      invoke<ImageData[]>('search_images', { tag: query })
+        .then(setImages)
+        .catch(console.error);
+    } else {
+      invoke<ImageData[]>('get_images').then(setImages).catch(console.error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleSearch(searchTag);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTag, handleSearch]);
 
   useEffect(() => {
     invoke<ImageData[]>('get_images').then(setImages).catch(console.error);
@@ -17,6 +36,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       {selectedImage && (
         <ImageModal
           image={selectedImage}
@@ -32,25 +52,72 @@ function App() {
                 {images ? `${images.length} images` : 'Loading...'}
               </p>
             </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
+            <div className="flex items-center gap-3 w-full max-w-xl justify-end">
+              <div className="relative w-full">
+                <span className="pointer-events-none absolute inset-y-0 left-0 pl-3 flex items-center">
+                  <svg
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"
+                    />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  value={searchTag}
+                  onChange={(e) => setSearchTag(e.target.value)}
+                  placeholder="Search tags..."
+                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/80"
                 />
-              </svg>
-              Add Image
-            </button>
+                {searchTag && (
+                  <button
+                    onClick={() => setSearchTag('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    aria-label="Clear search"
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Add
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -67,45 +134,65 @@ function App() {
         ) : (
           <div className="text-center py-16">
             <div className="mx-auto w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6">
-              <svg
-                className="w-12 h-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
+              {searchTag.trim() ? (
+                <svg
+                  className="w-12 h-12 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-12 h-12 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              )}
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No images yet
+              {searchTag.trim() ? 'No matching images' : 'No images yet'}
             </h3>
             <p className="text-gray-500 mb-6">
-              Get started by adding your first image to the vault
+              {searchTag.trim()
+                ? `No images found matching "${searchTag}". Try a different search term or add more tags to your images.`
+                : 'Get started by adding your first image to the vault'}
             </p>
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {!searchTag.trim() && (
+              <button
+                onClick={() => setShowModal(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Add Your First Image
-            </button>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Add Your First Image
+              </button>
+            )}
           </div>
         )}
       </main>

@@ -1,6 +1,13 @@
 use crate::{db::database::Db, models::image::Image};
 use rusqlite::{OptionalExtension, params};
 
+fn sanitize_fts_token(token: &str) -> String {
+    token
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-')
+        .collect()
+}
+
 #[tauri::command]
 pub fn get_images(db: tauri::State<Db>) -> Result<Vec<Image>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
@@ -104,4 +111,47 @@ pub fn get_tags(db: tauri::State<Db>, image_id: i64) -> Result<Vec<String>, Stri
     all_tags.dedup();
 
     Ok(all_tags)
+}
+
+#[tauri::command]
+pub fn search_images(db: tauri::State<Db>, tag: &str) -> Result<Vec<Image>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT images.id, images.filename, images.path, images.added_at
+         FROM image_search
+         JOIN images ON images.id = image_search.rowid
+         WHERE image_search MATCH ?1",
+        )
+        .map_err(|e| e.to_string())?;
+
+    let query = tag
+        .split_whitespace()
+        .filter(|t| !t.is_empty())
+        .map(|t| {
+            let t = sanitize_fts_token(t);
+            if t.is_empty() { t } else { format!("{}*", t) }
+        })
+        .filter(|t| !t.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let image_iter = stmt
+        .query_map([query], |row| {
+            Ok(Image {
+                id: row.get(0)?,
+                filename: row.get(1)?,
+                path: row.get(2)?,
+                added_at: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut images = Vec::new();
+    for image in image_iter {
+        images.push(image.map_err(|e| e.to_string())?);
+    }
+
+    Ok(images)
 }
