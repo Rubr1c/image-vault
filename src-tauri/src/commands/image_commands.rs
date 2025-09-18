@@ -1,4 +1,10 @@
-use crate::{db::database::Db, models::image::Image, utils::image_utils};
+use std::path::PathBuf;
+
+use crate::{
+    db::database::{self, Db},
+    models::image::Image,
+    utils::image_utils,
+};
 use rusqlite::{OptionalExtension, params};
 
 fn sanitize_fts_token(token: &str) -> String {
@@ -196,5 +202,31 @@ pub fn remove_tag(db: tauri::State<Db>, image_id: i64, tag: &str) -> Result<(), 
     stmt.execute((image_id, trimmed))
         .map_err(|e| e.to_string())?;
 
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_image_from_path(
+    db: tauri::State<Db>,
+    path: &str,
+    move_image: bool,
+) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let new_path = image_utils::save_local_image(PathBuf::from(path), move_image)
+        .map_err(|e| e.to_string())?;
+
+    println!("Adding image to database: {:?}", new_path);
+    database::add_image(
+        &conn,
+        new_path
+            .file_name()
+            .ok_or("Invalid filename")?
+            .to_str()
+            .ok_or("Invalid filename")?,
+        new_path.to_str().ok_or("Invalid path")?,
+    )
+    .map_err(|e| e.to_string())?;
+
+    println!("Image added to database: {:?}", new_path);
     Ok(())
 }

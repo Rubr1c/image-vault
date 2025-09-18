@@ -30,8 +30,12 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, [searchTag, handleSearch]);
 
-  useEffect(() => {
+  function addImage() {
     invoke<ImageData[]>('get_images').then(setImages).catch(console.error);
+  }
+
+  useEffect(() => {
+    addImage();
   }, []);
 
   return (
@@ -197,7 +201,12 @@ function App() {
         )}
       </main>
 
-      {showModal && <AddImageModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <AddImageModal
+          onClose={() => setShowModal(false)}
+          onAddImage={addImage}
+        />
+      )}
     </div>
   );
 }

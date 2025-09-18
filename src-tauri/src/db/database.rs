@@ -18,6 +18,30 @@ pub const MIGRATIONS: &[&str] = &[
     )",
 ];
 
+pub fn add_image(
+    conn: &Connection,
+    filename: &str,
+    full_path: &str,
+) -> Result<i64, Box<dyn std::error::Error>> {
+    conn.execute(
+        "INSERT INTO images (filename, path) VALUES (?1, ?2)",
+        params![filename, full_path],
+    )?;
+
+    let image_id = conn.last_insert_rowid();
+    let text = image_utils::extract_text_from_image(full_path).unwrap_or_else(|e| {
+        eprintln!("Warning: Could not extract text from {}: {}", filename, e);
+        String::new()
+    });
+    conn.execute(
+        "INSERT INTO image_search (rowid, search_text) VALUES (?1, ?2)",
+        params![image_id, text],
+    )?;
+
+    println!("Extracted text from {}: {}", filename, text);
+    Ok(image_id)
+}
+
 pub fn sync_from_files(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     let dir = path_utils::get_image_path();
 
@@ -42,22 +66,7 @@ pub fn sync_from_files(conn: &Connection) -> Result<(), Box<dyn std::error::Erro
             }
             Err(rusqlite::Error::QueryReturnedNoRows) => {
                 let full_path = path.to_string_lossy().to_string();
-                conn.execute(
-                    "INSERT INTO images (filename, path) VALUES (?1, ?2)",
-                    params![filename, full_path],
-                )?;
-
-                let image_id = conn.last_insert_rowid();
-                let text = image_utils::extract_text_from_image(&full_path).unwrap_or_else(|e| {
-                    eprintln!("Warning: Could not extract text from {}: {}", filename, e);
-                    String::new()
-                });
-                conn.execute(
-                    "INSERT INTO image_search (rowid, search_text) VALUES (?1, ?2)",
-                    params![image_id, text],
-                )?;
-
-                println!("Extracted text from {}: {}", filename, text);
+                add_image(conn, &filename, &full_path)?;
             }
             Err(e) => return Err(Box::new(e)),
         }
