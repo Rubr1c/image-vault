@@ -1,1 +1,2 @@
-pub mod file_utils;
+pub mod path_utils;
+pub mod image_utils;
