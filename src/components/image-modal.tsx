@@ -18,7 +18,7 @@ export default function ImageModal({
       .catch(console.error);
   }, [image.id]);
 
-  const handleAddTag = async () => {
+  async function handleAddTag() {
     if (tag.trim()) {
       try {
         await invoke('add_tag', {
@@ -31,13 +31,33 @@ export default function ImageModal({
         console.error('Failed to add tag:', error);
       }
     }
-  };
+  }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  function handleKeyPress(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       handleAddTag();
     }
-  };
+  }
+
+  async function handleOCRRetry() {
+    try {
+      await invoke('ocr_retry', { imageId: image.id });
+      invoke<string[]>('get_tags', { imageId: image.id })
+        .then(setTags)
+        .catch(console.error);
+    } catch (error) {
+      console.error('Failed to retry OCR:', error);
+    }
+  }
+
+  async function handleRemoveTag(tag: string) {
+    try {
+      await invoke('remove_tag', { imageId: image.id, tag });
+      setTags(tags.filter((t) => t !== tag));
+    } catch (error) {
+      console.error('Failed to remove tag:', error);
+    }
+  }
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -86,6 +106,18 @@ export default function ImageModal({
           {/* Sidebar */}
           <div className="lg:w-80 border-l border-gray-200 flex flex-col">
             {/* Tags Section */}
+
+            {/* OCR Section */}
+            <div className="p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">OCR</h2>
+              <button
+                onClick={handleOCRRetry}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 font-medium cursor-pointer"
+              >
+                Retry OCR
+              </button>
+            </div>
+
             <div className="p-6 flex-1">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Tags</h2>
 
@@ -98,6 +130,24 @@ export default function ImageModal({
                       className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
                     >
                       {tagItem}
+                      <button
+                        onClick={() => handleRemoveTag(tagItem)}
+                        className="ml-2 p-1 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
                     </span>
                   ))
                 ) : (

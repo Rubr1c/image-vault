@@ -10,6 +10,7 @@
     "UI should be minimal and intuitive: image grid layout, top search bar, and a modal for editing tags.",
     "Consistency between frontend and backend communication is maintained through Tauri commands.",
     "Codebase should stay clean, modular, and easy to extend.",
-    "Dont add comments to the code."
+    "Dont add comments to the code.",
+    "For named functions dont use arrow functions."
   ]
 }

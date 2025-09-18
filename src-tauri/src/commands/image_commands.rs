@@ -1,4 +1,4 @@
-use crate::{db::database::Db, models::image::Image};
+use crate::{db::database::Db, models::image::Image, utils::image_utils};
 use rusqlite::{OptionalExtension, params};
 
 fn sanitize_fts_token(token: &str) -> String {
@@ -154,4 +154,47 @@ pub fn search_images(db: tauri::State<Db>, tag: &str) -> Result<Vec<Image>, Stri
     }
 
     Ok(images)
+}
+
+#[tauri::command]
+pub fn ocr_retry(db: tauri::State<Db>, image_id: i64) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare("SELECT path FROM images WHERE id = ?1")
+        .map_err(|e| e.to_string())?;
+
+    let path: String = stmt
+        .query_row([image_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+
+    let text = image_utils::extract_text_from_image(&path).map_err(|e| e.to_string())?;
+
+    drop(stmt);
+    conn.execute(
+        "UPDATE image_search SET search_text = ?1 WHERE rowid = ?2",
+        (text, image_id),
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn remove_tag(db: tauri::State<Db>, image_id: i64, tag: &str) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare("DELETE FROM image_search WHERE rowid = ?1 AND search_text = ?2")
+        .map_err(|e| e.to_string())?;
+
+    let trimmed = tag.trim();
+    if trimmed.is_empty() {
+        return Ok(());
+    }
+
+    stmt.execute((image_id, trimmed))
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }

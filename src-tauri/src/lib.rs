@@ -40,6 +40,8 @@ pub fn run() {
             image_commands::add_tag,
             image_commands::get_tags,
             image_commands::search_images,
+            image_commands::ocr_retry,
+            image_commands::remove_tag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
