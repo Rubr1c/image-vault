@@ -17,7 +17,8 @@ export default function AddImageModal({
     target: 'file',
   });
 
-  async function handleAddImage() {
+  async function handleAddImage(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     if (options.target === 'file') {
       await invoke('save_image_from_path', {
         path,
@@ -56,7 +57,7 @@ export default function AddImageModal({
         </div>
 
         {/* Content */}
-        <form className="p-6 space-y-6">
+        <form className="p-6 space-y-6" onSubmit={handleAddImage}>
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">
               Select Image Path
@@ -134,7 +135,7 @@ export default function AddImageModal({
               Cancel
             </button>
             <button
-              onClick={handleAddImage}
+              type="submit"
               className="px-5 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 font-medium shadow-lg hover:shadow-xl cursor-pointer"
             >
               Add Image

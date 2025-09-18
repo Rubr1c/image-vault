@@ -6,6 +6,7 @@ use crate::{
     utils::image_utils,
 };
 use rusqlite::{OptionalExtension, params};
+use std::fs;
 
 fn sanitize_fts_token(token: &str) -> String {
     token
@@ -215,7 +216,6 @@ pub fn save_image_from_path(
     let new_path = image_utils::save_local_image(PathBuf::from(path), move_image)
         .map_err(|e| e.to_string())?;
 
-    println!("Adding image to database: {:?}", new_path);
     database::add_image(
         &conn,
         new_path
@@ -227,6 +227,49 @@ pub fn save_image_from_path(
     )
     .map_err(|e| e.to_string())?;
 
-    println!("Image added to database: {:?}", new_path);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_image_from_folder(db: tauri::State<Db>, path: &str) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let folder_path = PathBuf::from(path);
+    for entry in fs::read_dir(folder_path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let filename = entry
+            .file_name()
+            .to_str()
+            .ok_or("Invalid filename")?
+            .to_string();
+        let new_path =
+            image_utils::save_local_image(entry.path(), false).map_err(|e| e.to_string())?;
+        database::add_image(&conn, &filename, new_path.to_str().ok_or("Invalid path")?)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_image(db: tauri::State<Db>, image_id: i64) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare("SELECT path FROM images WHERE id = ?1")
+        .map_err(|e| e.to_string())?;
+    let path: String = stmt
+        .query_row([image_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+
+    conn.execute("DELETE FROM images WHERE id = ?1", [image_id])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM image_search WHERE rowid = ?1", [image_id])
+        .map_err(|e| e.to_string())?;
+
+    std::fs::remove_file(path).map_err(|e| e.to_string())?;
+
+    drop(stmt);
+
     Ok(())
 }

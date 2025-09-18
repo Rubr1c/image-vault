@@ -33,7 +33,6 @@ pub fn save_local_image(
     let image_path = path_utils::get_image_path();
     let image_path = image_path.join(path.file_name().ok_or("Invalid filename")?);
 
-    println!("Saving image from: {:?} to: {:?}", path, image_path);
 
     // Generate unique filename if target already exists
     let mut final_path = image_path.clone();

@@ -30,12 +30,12 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, [searchTag, handleSearch]);
 
-  function addImage() {
+  function getImages() {
     invoke<ImageData[]>('get_images').then(setImages).catch(console.error);
   }
 
   useEffect(() => {
-    addImage();
+    getImages();
   }, []);
 
   return (
@@ -131,7 +131,11 @@ function App() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
             {images.map((image) => (
               <div key={image.id} className="group">
-                <Image image={image} setSelectedImage={setSelectedImage} />
+                <Image
+                  image={image}
+                  setSelectedImage={setSelectedImage}
+                  onDelete={getImages}
+                />
               </div>
             ))}
           </div>
@@ -204,7 +208,7 @@ function App() {
       {showModal && (
         <AddImageModal
           onClose={() => setShowModal(false)}
-          onAddImage={addImage}
+          onAddImage={getImages}
         />
       )}
     </div>
