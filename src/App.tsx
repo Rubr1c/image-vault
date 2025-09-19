@@ -5,6 +5,7 @@ import Image from './components/image';
 import { ImageData } from './types/image';
 import AddImageModal from './components/add-image-modal';
 import ImageModal from './components/image-modal';
+import AddButton from './components/add-button';
 
 function App() {
   const [images, setImages] = useState<ImageData[]>();
@@ -80,8 +81,8 @@ function App() {
           onClose={() => setSelectedImage(undefined)}
         />
       )}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">ImageVault</h1>
@@ -111,7 +112,7 @@ function App() {
                   value={searchTag}
                   onChange={(e) => setSearchTag(e.target.value)}
                   placeholder="Search tags..."
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/80"
+                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/80 placeholder:text-gray-400"
                 />
                 {searchTag && (
                   <button
@@ -135,25 +136,6 @@ function App() {
                   </button>
                 )}
               </div>
-              <button
-                onClick={() => setShowModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
-                Add
-              </button>
             </div>
           </div>
         </div>
@@ -214,6 +196,9 @@ function App() {
                 : 'Get started by adding your first image to the vault'}
             </p>
             {!searchTag.trim() && (
+              <p className="text-gray-400 text-sm mb-8">Tip: Press Ctrl+V to paste an image from your clipboard.</p>
+            )}
+            {!searchTag.trim() && (
               <button
                 onClick={() => setShowModal(true)}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
@@ -244,6 +229,8 @@ function App() {
           onAddImage={getImages}
         />
       )}
+      {/* Floating Add Button for quick access */}
+      <AddButton onClick={() => setShowModal(true)} />
     </div>
   );
 }

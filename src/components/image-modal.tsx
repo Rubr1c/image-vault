@@ -19,17 +19,24 @@ export default function ImageModal({
   }, [image.id]);
 
   async function handleAddTag() {
-    if (tag.trim()) {
-      try {
-        await invoke('add_tag', {
-          imageId: image.id,
-          newTag: tag.trim(),
-        });
-        setTags([...tags, tag.trim()]);
-        setTag('');
-      } catch (error) {
-        console.error('Failed to add tag:', error);
-      }
+    const raw = tag.trim();
+    if (!raw) return;
+    // Support adding multiple tags separated by space or comma
+    const parts = Array.from(new Set(raw.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean)));
+    if (parts.length === 0) return;
+    try {
+      await Promise.all(
+        parts.map((t) =>
+          invoke('add_tag', {
+            imageId: image.id,
+            newTag: t,
+          })
+        )
+      );
+      setTags((prev) => Array.from(new Set([...prev, ...parts])));
+      setTag('');
+    } catch (error) {
+      console.error('Failed to add tag(s):', error);
     }
   }
 
@@ -60,34 +67,24 @@ export default function ImageModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl max-h-[90vh] w-full overflow-hidden">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade">
+      <div className="bg-white rounded-xl shadow-2xl max-w-5xl max-h-[90vh] w-full overflow-hidden animate-modal-in">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-semibold text-gray-900 truncate">
+            <h1 className="text-xl font-semibold text-gray-900 truncate" title={image.filename}>
               {image.filename}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Added {new Date(image.added_at).toLocaleDateString()}
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Added {new Date(image.added_at).toLocaleString()}</p>
           </div>
           <button
             onClick={onClose}
             className="ml-4 p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
+            aria-label="Close"
+            type="button"
           >
-            <svg
-              className="w-6 h-6 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -99,26 +96,27 @@ export default function ImageModal({
             <img
               src={convertFileSrc(image.path)}
               alt={image.filename}
-              className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+              className="max-w-full max-h-full object-contain rounded-lg shadow"
             />
           </div>
 
           {/* Sidebar */}
-          <div className="lg:w-80 border-l border-gray-200 flex flex-col">
-            {/* Tags Section */}
-
-            {/* OCR Section */}
-            <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">OCR</h2>
-              <button
-                onClick={handleOCRRetry}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 font-medium cursor-pointer"
-              >
-                Retry OCR
-              </button>
+          <div className="lg:w-96 border-l border-gray-200 flex flex-col">
+            {/* Actions Section */}
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Actions</h2>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleOCRRetry}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 font-medium cursor-pointer"
+                >
+                  Retry OCR
+                </button>
+              </div>
             </div>
 
-            <div className="p-6 flex-1">
+            {/* Tags Section */}
+            <div className="p-6 flex-1 overflow-y-auto">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Tags</h2>
 
               {/* Tags Display */}
@@ -126,26 +124,18 @@ export default function ImageModal({
                 {tags.length > 0 ? (
                   tags.map((tagItem, index) => (
                     <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      key={`${tagItem}-${index}`}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-800 border border-blue-200"
                     >
                       {tagItem}
                       <button
                         onClick={() => handleRemoveTag(tagItem)}
-                        className="ml-2 p-1 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        className="ml-2 p-1 hover:bg-white rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        aria-label={`Remove ${tagItem}`}
+                        type="button"
                       >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </span>
@@ -156,23 +146,22 @@ export default function ImageModal({
               </div>
 
               {/* Add Tag Input */}
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  Add New Tag
-                </label>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Add Tag(s)</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={tag}
                     onChange={(e) => setTag(e.target.value)}
                     onKeyDown={handleKeyPress}
-                    placeholder="Enter tag names separated by spaces..."
+                    placeholder="Type tags separated by space or comma, then press Enter"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   />
                   <button
                     onClick={handleAddTag}
                     disabled={!tag.trim()}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="button"
                   >
                     Add
                   </button>
@@ -185,6 +174,7 @@ export default function ImageModal({
               <button
                 onClick={onClose}
                 className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 transition-all duration-200 font-medium cursor-pointer"
+                type="button"
               >
                 Close
               </button>
