@@ -19,6 +19,7 @@ export default function AddImageModal({
   });
   const [progress, setProgress] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
+  const [url, setUrl] = useState<string>('');
 
   async function handleAddImage(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -34,6 +35,15 @@ export default function AddImageModal({
       });
     }
     onAddImage();
+    onClose();
+  }
+
+  async function handleFetchImage() {
+    await invoke('fetch_and_save_image', {
+      url,
+    });
+    onAddImage();
+    onClose();
   }
 
   useEffect(() => {
@@ -144,6 +154,20 @@ export default function AddImageModal({
                 Supported formats: JPG, PNG, GIF, WebP
               </div>
             </div>
+          </div>
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Fetch from URL
+            </label>
+            <input
+              type="text"
+              placeholder="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+            <button type="button" onClick={handleFetchImage}>
+              Fetch
+            </button>
           </div>
 
           {/* Action Buttons */}
