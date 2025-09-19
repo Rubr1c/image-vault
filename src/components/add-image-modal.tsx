@@ -19,7 +19,8 @@ export default function AddImageModal({
   });
   const [progress, setProgress] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
-  const [url, setUrl] = useState<string>('');
+  const [urlOrPath, setUrlOrPath] = useState<string>('');
+  const [isPath, setIsPath] = useState<boolean>(false);
 
   async function handleAddImage(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,9 +40,15 @@ export default function AddImageModal({
   }
 
   async function handleFetchImage() {
-    await invoke('fetch_and_save_image', {
-      url,
-    });
+    if (isPath) {
+      await invoke('fetch_and_save_from_file', {
+        path: urlOrPath,
+      });
+    } else {
+      await invoke('fetch_and_save_image', {
+        urlOrPath,
+      });
+    }
     onAddImage();
     onClose();
   }
@@ -157,13 +164,19 @@ export default function AddImageModal({
           </div>
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">
-              Fetch from URL
+              Fetch from URL/path to url file
             </label>
             <input
+              type="checkbox"
+              checked={isPath}
+              onChange={(e) => setIsPath(e.target.checked)}
+            />
+            Path
+            <input
               type="text"
-              placeholder="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              placeholder="url or path"
+              value={urlOrPath}
+              onChange={(e) => setUrlOrPath(e.target.value)}
             />
             <button type="button" onClick={handleFetchImage}>
               Fetch

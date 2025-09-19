@@ -33,7 +33,6 @@ pub fn save_local_image(
     let image_path = path_utils::get_image_path();
     let image_path = image_path.join(path.file_name().ok_or("Invalid filename")?);
 
-
     // Generate unique filename if target already exists
     let mut final_path = image_path.clone();
     let mut counter = 1;
@@ -63,4 +62,50 @@ pub fn save_local_image(
     }
 
     Ok(final_path)
+}
+
+pub async fn save_image_from_url(url: String) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    use regex::Regex;
+    use reqwest::Client;
+    use std::fs;
+    use std::path::Path;
+
+    let client = Client::new();
+    let resp = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+
+    // Extract filename from URL, fallback to timestamped name if invalid
+    let mut filename = url.split('/').last().unwrap_or("image.jpg").to_string();
+
+    // Remove query parameters and fragments
+    if let Some(idx) = filename.find(['?', '#'].as_ref()) {
+        filename.truncate(idx);
+    }
+
+    // If filename is empty or only an extension, fallback to timestamped name
+    if filename.trim().is_empty() || filename.starts_with('.') {
+        filename = format!("fetched_{}.jpg", chrono::Utc::now().timestamp());
+    }
+
+    // Remove invalid characters for Windows and other OSes
+    // Windows: <>:"/\|?* and ASCII control chars (0-31)
+    let re = Regex::new(r#"[<>:"/\\|?*\x00-\x1F]"#).unwrap();
+    filename = re.replace_all(&filename, "_").to_string();
+
+    // If filename is still empty, fallback
+    if filename.trim().is_empty() {
+        filename = format!("fetched_{}.jpg", chrono::Utc::now().timestamp());
+    }
+
+    // If filename is a directory, fallback
+    if Path::new(&filename).components().count() != 1 {
+        filename = format!("fetched_{}.jpg", chrono::Utc::now().timestamp());
+    }
+
+    let mut path = path_utils::get_image_path();
+    path.push(&filename);
+
+    fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+
+    Ok(path)
 }
