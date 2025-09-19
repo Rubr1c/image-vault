@@ -29,6 +29,7 @@ pub fn run() {
             path_utils::set_resource_dir(Some(resource_dir));
 
             database::sync_from_files(&conn)?;
+            database::run_folder_sync(&conn)?;
 
             app.manage(Db(Mutex::new(conn)));
 

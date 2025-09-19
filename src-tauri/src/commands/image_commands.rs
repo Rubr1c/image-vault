@@ -405,3 +405,11 @@ pub async fn fetch_and_save_from_file(
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn add_sync_folder(db: tauri::State<Db>, path: String, move_images: bool) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    database::add_sync_folder(&conn, path, move_images)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
