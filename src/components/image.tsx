@@ -20,29 +20,11 @@ export default function Image({
   }
 
   async function copyImageToClipboard(path: string) {
-    //TODO: make it keep original image format
-    const response = await fetch(path);
-    const blob = await response.blob();
-
-    const img = await createImageBitmap(blob);
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas context failed');
-    ctx.drawImage(img, 0, 0);
-
-    const pngBlob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b as Blob), 'image/png')
-    );
-
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'image/png': pngBlob,
-      }),
-    ]);
-
+    try {
+      await invoke('copy_image_to_clipboard', { path });
+    } catch (err) {
+      console.error('Failed to copy image:', err);
+    }
   }
 
   return (
@@ -65,7 +47,7 @@ export default function Image({
         draggable={false}
       />
       <button
-        onClick={() => copyImageToClipboard(convertFileSrc(image.path))}
+        onClick={() => copyImageToClipboard(image.path)}
         className="absolute bottom-2 left-2 z-10 bg-blue-500/90 text-white px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
         title="Copy image"
         type="button"

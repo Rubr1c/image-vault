@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import { useState } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { useEffect, useState } from 'react';
 
 export default function AddImageModal({
   onClose,
@@ -16,6 +17,8 @@ export default function AddImageModal({
     moveImage: false,
     target: 'file',
   });
+  const [progress, setProgress] = useState<number>(0);
+  const [total, setTotal] = useState<number>(0);
 
   async function handleAddImage(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -25,10 +28,28 @@ export default function AddImageModal({
         moveImage: options.moveImage,
       });
     } else {
-      //TODO: Implement folder support
+      await invoke('save_image_from_folder', {
+        path,
+        moveImage: options.moveImage,
+      });
     }
     onAddImage();
   }
+
+  useEffect(() => {
+    const unlisten = listen<[number, number]>(
+      'save_images_progress',
+      ({ payload }) => {
+        const [count, total] = payload;
+        setProgress(count);
+        setTotal(total);
+      }
+    );
+
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -140,6 +161,9 @@ export default function AddImageModal({
             >
               Add Image
             </button>
+            <div className="text-xs text-gray-500">
+              {progress}/{total}
+            </div>
           </div>
         </form>
       </div>

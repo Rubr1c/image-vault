@@ -43,7 +43,10 @@ pub fn run() {
             image_commands::ocr_retry,
             image_commands::remove_tag,
             image_commands::save_image_from_path,
+            image_commands::save_image_from_folder,
             image_commands::delete_image,
+            image_commands::copy_image_to_clipboard,
+            image_commands::save_image_blob,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -22,13 +22,46 @@ function App() {
     }
   }, []);
 
+  function saveImageBlob(blob: File) {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    console.log(reader.result);
+    reader.onload = () => {
+      console.log('backend image blob');
+      invoke<string>('save_image_blob', { blob: reader.result as string })
+        .then(getImages)
+        .catch(console.error);
+    };
+
+    console.log('frontend image blob');
+    reader.onerror = () => {
+      console.error('error reading image blob');
+    };
+  }
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       handleSearch(searchTag);
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [searchTag, handleSearch]);
+
+  useEffect(() => {
+    function handler(e: ClipboardEvent) {
+      for (const item of e.clipboardData?.items || []) {
+        console.log(item.type);
+        if (item.type.startsWith('image/')) {
+          const blob = item.getAsFile();
+          if (blob) {
+            console.log('saving image blob');
+            saveImageBlob(blob);
+          }
+        }
+      }
+    }
+    document.addEventListener('paste', handler);
+    return () => document.removeEventListener('paste', handler);
+  }, []);
 
   function getImages() {
     invoke<ImageData[]>('get_images').then(setImages).catch(console.error);

@@ -1,12 +1,15 @@
-use std::path::PathBuf;
+use std::path::{self, PathBuf};
 
 use crate::{
     db::database::{self, Db},
     models::image::Image,
-    utils::image_utils,
+    utils::{image_utils, path_utils},
 };
+use arboard::Clipboard;
+use dirs_next::data_dir;
 use rusqlite::{OptionalExtension, params};
 use std::fs;
+use tauri::{Emitter, State, Window};
 
 fn sanitize_fts_token(token: &str) -> String {
     token
@@ -231,20 +234,52 @@ pub fn save_image_from_path(
 }
 
 #[tauri::command]
-pub fn save_image_from_folder(db: tauri::State<Db>, path: &str) -> Result<(), String> {
+// TODO: Make it faster by processing images in parallel
+pub fn save_image_from_folder(
+    window: Window,
+    db: State<Db>,
+    path: &str,
+    move_image: bool,
+) -> Result<(), String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
 
     let folder_path = PathBuf::from(path);
-    for entry in fs::read_dir(folder_path).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+    let entries: Vec<_> = fs::read_dir(folder_path)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<_, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let total = entries.len();
+    let mut count = 0;
+
+    for entry in entries {
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            continue;
+        }
+
+        if !entry_path.extension().map_or(false, |ext| {
+            ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "webp" || ext == "gif"
+        }) {
+            continue;
+        }
+
         let filename = entry
             .file_name()
             .to_str()
             .ok_or("Invalid filename")?
             .to_string();
+
         let new_path =
-            image_utils::save_local_image(entry.path(), false).map_err(|e| e.to_string())?;
+            image_utils::save_local_image(entry_path, move_image).map_err(|e| e.to_string())?;
+
         database::add_image(&conn, &filename, new_path.to_str().ok_or("Invalid path")?)
+            .map_err(|e| e.to_string())?;
+
+        count += 1;
+
+        window
+            .emit("save_images_progress", (count, total))
             .map_err(|e| e.to_string())?;
     }
 
@@ -272,4 +307,49 @@ pub fn delete_image(db: tauri::State<Db>, image_id: i64) -> Result<(), String> {
     drop(stmt);
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn copy_image_to_clipboard(path: String) -> Result<(), String> {
+    let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
+
+    let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+
+    let img = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
+    let rgba = img.to_rgba8();
+
+    let (width, height) = rgba.dimensions();
+
+    clipboard
+        .set_image(arboard::ImageData {
+            width: width as usize,
+            height: height as usize,
+            bytes: std::borrow::Cow::Owned(rgba.into_raw()),
+        })
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_image_blob(db: tauri::State<Db>, blob: String) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+
+    let data = blob.split(',').last().unwrap_or("");
+    //TODO: change from deprected function
+    let bytes = base64::decode(data).map_err(|e| e.to_string())?;
+
+    let mut path = path_utils::get_image_path();
+
+    fs::create_dir_all(&path).map_err(|e| e.to_string())?;
+
+    let filename = format!("pasted_{}.png", chrono::Utc::now().timestamp());
+    path.push(filename.clone());
+
+    fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+
+    database::add_image(&conn, &filename, path.to_str().ok_or("Invalid path")?)
+        .map_err(|e| e.to_string())?;
+
+    Ok(path.to_string_lossy().to_string())
 }
